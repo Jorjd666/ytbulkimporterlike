@@ -1,0 +1,4 @@
+# Minimal deps to run like_playlist.py with OAuth
+# Use with: uv pip install -r requirements.txt
+ytmusicapi>=1.7.5
+httpx>=0.27

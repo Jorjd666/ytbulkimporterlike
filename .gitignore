@@ -1,0 +1,31 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.pyo
+*.egg-info/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# --- macOS cruft ---
+.DS_Store
+
+# --- Logs ---
+*.log
+like_run.log
+
+# --- Auth & secrets (DO NOT COMMIT) ---
+oauth.json
+oauth_credentials.json
+headers_auth.json
+client_secret*.json
+client_id*.json
+
+# --- IDE/editor ---
+.vscode/
+.idea/
