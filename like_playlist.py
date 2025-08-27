@@ -3,9 +3,10 @@
 # Like every unliked track from a single YouTube Music playlist.
 # - Uses OAuth tokens in oauth.json + client creds in oauth_credentials.json
 # - Gentle rate limiting + retries + ETA
-# - Uses OAuthCredentials object (not dict) to avoid refresh_token errors
+# - Uses OAuthCredentials object to avoid refresh_token errors
+# - Retries network timeouts when fetching large playlists
 
-import os, sys, time, random, json
+import os, sys, time, random, json, requests
 from datetime import datetime
 from typing import Tuple
 from ytmusicapi import YTMusic
@@ -52,6 +53,24 @@ def polite_sleep():
     time.sleep(random.uniform(*DELAY_RANGE_SEC))
 
 
+def get_playlist_with_retries(yt: YTMusic, playlist_id: str, limit: int, title_for_logs="playlist"):
+    """Fetch a playlist with retries on network timeouts; returns (playlist_dict, yt_instance)."""
+    delay = 2
+    for attempt in range(1, 7):  # ~2+4+8+16+32s = robust
+        try:
+            return yt.get_playlist(playlist_id, limit=limit), yt
+        except (requests.exceptions.ReadTimeout,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.ChunkedEncodingError) as e:
+            print(f"  Network timeout while fetching '{title_for_logs}' "
+                  f"(attempt {attempt}): {e} — retrying in {delay}s…")
+            time.sleep(delay)
+            delay = min(delay * 2, 60)
+            yt = make_ytmusic()  # refresh session/credentials
+    print(f"  Giving up on '{title_for_logs}' after multiple timeouts; moving on.")
+    return {"tracks": []}, yt
+
+
 def like_with_retries(yt: YTMusic, video_id: str) -> Tuple[bool, YTMusic]:
     """Attempt to like a track, with retries and optional client re-init on token refresh issues.
     Returns (success, possibly-updated-yt-instance)."""
@@ -85,7 +104,7 @@ def main():
     yt = make_ytmusic()
     print(f"Auth OK — starting at {datetime.now().strftime('%H:%M:%S')}…")
 
-    pl = yt.get_playlist(playlist_id, limit=PLAYLIST_LIMIT)
+    pl, yt = get_playlist_with_retries(yt, playlist_id, PLAYLIST_LIMIT, title_for_logs=playlist_id)
     tracks = pl.get("tracks", []) or []
     total = len(tracks)
 
